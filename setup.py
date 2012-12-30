@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Scripts and system tool wrappers for OS/X
+Scripts and system tool wrappers for linux
 
 This module is split from penguinist module to platform dependent tool
 """

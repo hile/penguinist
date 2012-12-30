@@ -4,7 +4,7 @@ Implementation of linux filesystem mount point parsing
 """
 
 import os,re,logging
-from subprocess import Popen,PIPE
+from subprocess import check_output,CalledProcessError
 
 #noinspection PyPackageRequirements,PyPackageRequirements,PyPackageRequirements,PyPackageRequirements
 from systematic.filesystems import MountPoint,FileSystemError
@@ -21,37 +21,36 @@ MAPPER_PATH = '/dev/mapper'
 UUID_PATH = '/dev/disk/by-uuid'
 LABEL_PATH = '/dev/disk/by-label'
 
+RE_MOUNT = re.compile(r'([^\s]*) on (.*) type ([^\s]+) \(([^\)]*)\)$')
+
 class MountPoints(dict):
     """
     Mount points for linux filesystems
     """
     def __init__(self):
-        dict.__init__(self)
         self.update()
 
-    #noinspection PyMethodOverriding
     def update(self):
         """
         Update list of linux mountpoints based on /bin/mount output
         """
-        p = Popen('/bin/mount',stdout=PIPE,stderr=PIPE)
-        (stdout,stderr) = p.communicate()
-        #noinspection PySimplifyBooleanCheck,PySimplifyBooleanCheck,PySimplifyBooleanCheck
-        if p.returncode != 0:
-            raise FileSystemError('Error getting mountpoints: %s' % stderr)
+        try:
+            output = check_output(['/bin/mount'])
+        except CalledProcessError:
+            raise FileSystemError('Error running /bin/mount')
 
-        re_mount = re.compile(r'([^\s]*) on (.*) type ([^\s]+) \(([^\)]*)\)$')
+        for l in [l for l in output.split('\n') if l.strip()!='']:
+            if l[:4] == 'map ':
+                continue
 
-        for l in stdout.split('\n'):
-            if l == '': continue
-            if l[:4] == 'map ': continue
-            m = re.match(re_mount,l)
+            m = RE_MOUNT.match(l)
             if not m:
                 continue
             device = m.group(1)
             mountpoint = m.group(2)
             filesystem = m.group(3)
             flags = map(lambda x: x.strip(), m.group(4).split(','))
+
             entry = LinuxMountPoint(device,mountpoint,filesystem)
             for f in flags:
                 entry.flags.set(f,True)
@@ -88,33 +87,35 @@ class LinuxMountPoint(MountPoint):
                 if dev == self.device:
                     self.label = label
                     break
-        else:
-            logging.debug('Missing directory: %s' % LABEL_PATH)
 
-    def __getattr__(self,item):
-        return MountPoint.__getattr__(self,item)
-
-    def checkusage(self):
+    @property
+    def usage(self):
         """
-        Function to parse usage of this filesystem
+        Check usage percentage for this mountpoint.
+        Returns dictionary with usage details.
         """
         if self.filesystem in PSEUDO_FILESYSTEM:
-            raise FileSystemError('%s: no usage data' % self.filesystem)
-        p = Popen(['df','-k',self.mountpoint],stdout=PIPE,stderr=PIPE)
-        (stdout,stderr) = p.communicate()
-        #noinspection PySimplifyBooleanCheck
-        if p.returncode != 0:
-            raise FileSystemError('Error running df: %s' % stderr)
-    
-        (header,usage) = stdout.split('\n',1)
+            return {}
+
+        try:
+            output = check_output(['df','-k',self.mountpoint])
+        except CalledProcessError:
+            raise FileSystemError('Error getting usage for %s' % self.mountpoint)
+        (header,usage) = output.split('\n',1)
+
         try:
             usage = ' '.join(usage.split('\n'))
         except ValueError:
             pass
-        (fs,size,used,free,percent,mp) = map(lambda x: x.strip(), usage.split())
+
+        (fs,size,used,free,percent,mp) = [x.strip() for x in usage.split()]
         percent = percent.rstrip('%')
+
         return {
-            'size': long(size),'used': long(used), 
-            'free': long(free),'percent': int(percent)
+            'mountpoint': self.mountpoint,
+            'size': long(size),
+            'used': long(used),
+            'free': long(free),
+            'percent': int(percent),
         }
 
