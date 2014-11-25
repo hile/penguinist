@@ -10,8 +10,7 @@ import glob
 
 from setuptools import setup, find_packages
 
-VERSION='4.0.2'
-README = open(os.path.join(os.path.dirname(__file__),'README.md'),'r').read()
+VERSION='4.1.0'
 
 setup(
     name = 'penguinist',
@@ -19,7 +18,6 @@ setup(
     description = 'Sysadmin utility modules and scripts for linux',
     author = 'Ilkka Tuohela',
     author_email = 'hile@iki.fi',
-    long_description = README,
     version = VERSION,
     url = 'http://tuohela.net/packages/penguinist',
     license = 'PSF',
