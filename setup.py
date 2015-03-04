@@ -4,8 +4,6 @@ Scripts and system tool wrappers for linux
 This module is split from penguinist module to platform dependent tool
 """
 
-import sys
-import os
 import glob
 
 from setuptools import setup, find_packages
@@ -19,17 +17,13 @@ setup(
     author = 'Ilkka Tuohela',
     author_email = 'hile@iki.fi',
     version = VERSION,
-    url = 'http://tuohela.net/packages/penguinist',
+    url = 'https://github.com/hile/penguinist',
     license = 'PSF',
-    zip_safe = False,
-    packages = (
-        'penguinist',
-        'penguinist.log',
-    ),
     scripts = glob.glob('bin/*'),
+    packages = find_packages(),
     install_requires = (
-        'systematic>=4.0.4',
-        'seine>=2.4.1',
+        'systematic>=4.2.6',
+        'seine>=3.0.2',
     ),
 )
 
